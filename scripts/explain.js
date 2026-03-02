@@ -13,7 +13,48 @@ function loadGetPreference() {
   }
 }
 
+function loadComputeScore() {
+  try {
+    return require('../dist/ranking/scoring').computeScore;
+  } catch {
+    return () => ({
+      personalizationLayer: 0,
+      preferenceBoost: 0,
+      engagementQualityLayer: 0,
+      freshnessLayer: 0,
+      creatorGrowthLayer: 0,
+      emergingBoost: 0,
+      explorationNoise: 0,
+      diversityPenalty: 0,
+      totalScore: 0,
+    });
+  }
+}
+
+async function loadItemFromDb(_itemId) {
+  // Future DB hook:
+  // - load item + engagement + creator metadata
+  // - map to computeScore input fields
+  // For now, database may not have compatible explain projection.
+  return null;
+}
+
+function emptyBreakdown() {
+  return {
+    personalizationLayer: 0,
+    preferenceBoost: 0,
+    engagementQualityLayer: 0,
+    freshnessLayer: 0,
+    creatorGrowthLayer: 0,
+    emergingBoost: 0,
+    explorationNoise: 0,
+    diversityPenalty: 0,
+    totalScore: 0,
+  };
+}
+
 const getPreference = loadGetPreference();
+const computeScore = loadComputeScore();
 
 const itemId = process.argv[3];
 if (!itemId) {
@@ -21,24 +62,47 @@ if (!itemId) {
   process.exit(0);
 }
 
-// In real system, load item from DB.
-// Since DB is empty, return structured placeholder + preference view.
-const preference = getPreference('demo-user');
+async function main() {
+  const preference = getPreference('demo-user');
+  const item = await loadItemFromDb(itemId);
 
-const breakdown = {
-  personalizationLayer: 0,
-  engagementQualityLayer: 0,
-  freshnessLayer: 0,
-  creatorGrowthLayer: 0,
-  emergingBoost: 0,
-  explorationNoise: 0,
-  diversityPenalty: 0,
-  totalScore: 0
-};
+  if (!item) {
+    const breakdown = emptyBreakdown();
+    console.log({
+      itemId,
+      explanation: 'Explain response (no item data available).',
+      breakdown,
+      totalScore: breakdown.totalScore,
+      preferences: preference,
+    });
+    return;
+  }
 
-console.log({
-  itemId,
-  explanation: 'Explain response (no item data available).',
-  breakdown,
-  preferences: preference
+  const breakdown = computeScore({
+    userId: 'demo-user',
+    tagNames: item.tagNames ?? [],
+    category: item.category ?? null,
+    designerId: item.designerId ?? null,
+    tagWeight: item.tagWeight,
+    categoryWeight: item.categoryWeight,
+    designerWeight: item.designerWeight,
+    likes7d: item.likes7d,
+    saves7d: item.saves7d,
+    ageInHours: item.ageInHours,
+    ageInDays: item.ageInDays,
+    followerCount: item.followerCount,
+    itemCount: item.itemCount,
+  });
+
+  console.log({
+    itemId,
+    breakdown,
+    totalScore: breakdown.totalScore,
+    preferences: preference,
+  });
+}
+
+main().catch((err) => {
+  console.error('Explain command failed:', err);
+  process.exit(1);
 });
