@@ -8,7 +8,8 @@
     "build": "tsc --project tsconfig.json --outDir dist --rootDir src",
     "start:dev": "ts-node ./src/api/server.ts",
     "typecheck": "tsc --noEmit",
-    "start:prod": "node ./dist/api/server.js"
+    "start:prod": "node ./dist/api/server.js",
+    "explain": "node scripts/explain.js"
   },
   "keywords": [],
   "author": "",
