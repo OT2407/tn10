@@ -3,6 +3,7 @@ import { computeScore } from '../ranking/scoring';
 import type { LayerBreakdown } from '../ranking/types';
 import { getSnapshot, setSnapshot } from '../cache/feedSnapshot';
 import { logRankingTelemetry } from '../telemetry/rankingTelemetry';
+import { DIVERSITY } from '../ranking/diversity';
 
 const prisma = new PrismaClient();
 
@@ -258,7 +259,26 @@ async function buildSnapshot(userId: string): Promise<RankedSnapshot> {
 
   rankedWithBreakdown.sort((a, b) => b.score - a.score);
 
-  const rankedItems: ExploreScoredItem[] = rankedWithBreakdown.map((entry) => ({
+  const seenDesigners = new Set<string>();
+  const diversityAdjusted = rankedWithBreakdown.map((entry) => {
+    if (entry.item.sellerId === null) {
+      return entry;
+    }
+
+    if (seenDesigners.has(entry.item.sellerId)) {
+      return {
+        ...entry,
+        score: entry.score - DIVERSITY.softRepeatPenalty,
+      };
+    }
+
+    seenDesigners.add(entry.item.sellerId);
+    return entry;
+  });
+
+  diversityAdjusted.sort((a, b) => b.score - a.score);
+
+  const rankedItems: ExploreScoredItem[] = diversityAdjusted.map((entry) => ({
     itemId: entry.item.id,
     score: entry.score,
     title: entry.item.title,
@@ -268,11 +288,11 @@ async function buildSnapshot(userId: string): Promise<RankedSnapshot> {
   }));
 
   const breakdownByItemId = new Map<string, LayerBreakdown>();
-  for (const entry of rankedWithBreakdown) {
+  for (const entry of diversityAdjusted) {
     breakdownByItemId.set(entry.item.id, entry.breakdown);
   }
 
-  const orderedIds = rankedWithBreakdown.map((entry) => entry.item.id);
+  const orderedIds = diversityAdjusted.map((entry) => entry.item.id);
   setSnapshot(userId, orderedIds);
 
   const ttlMs = 5 * 60 * 1000;

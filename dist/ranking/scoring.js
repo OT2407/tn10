@@ -17,12 +17,13 @@ function computeScore(input) {
         ? constants_1.CREATOR_GROWTH.emergingBoost
         : 0;
     const explorationNoise = Math.random() * constants_1.EXPLORATION.maxNoise;
-    const totalScore = personalizationLayer +
+    const baseScore = personalizationLayer +
         engagementQualityLayer +
         freshnessLayer +
         creatorGrowthLayer +
         emergingBoost +
         explorationNoise;
+    // Diversity soft penalty (session-level applied by caller)
     return {
         personalizationLayer,
         engagementQualityLayer,
@@ -30,7 +31,7 @@ function computeScore(input) {
         creatorGrowthLayer,
         emergingBoost,
         explorationNoise,
-        totalScore,
+        totalScore: baseScore,
     };
 }
 //# sourceMappingURL=scoring.js.map
