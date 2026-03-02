@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../application/errors';
 import { applyLikePreferenceBoost } from './intelligenceService';
+import { updatePreference } from '../ranking/preferences';
 
 const prisma = new PrismaClient();
 
@@ -11,7 +12,10 @@ interface LikeMutationResult {
 const MAX_LIKES_PER_MINUTE = 30;
 
 export async function createLike(userId: string, itemId: string): Promise<LikeMutationResult> {
-  const item = await prisma.item.findUnique({ where: { id: itemId } });
+  const item = await (prisma.item as any).findUnique({
+    where: { id: itemId },
+    include: { tags: { include: { tag: true } } },
+  }) as any;
   if (!item) {
     throw new AppError(404, 'ITEM_NOT_FOUND', 'Item not found');
   }
@@ -56,6 +60,13 @@ export async function createLike(userId: string, itemId: string): Promise<LikeMu
       return { created: false };
     }
     throw new AppError(400, 'FOREIGN_KEY_VIOLATION', 'Invalid like relation');
+  }
+
+  for (const relation of item.tags) {
+    updatePreference(userId, 'tag', relation.tag.name, +1);
+  }
+  if (item.sellerId) {
+    updatePreference(userId, 'designer', item.sellerId, +1);
   }
 
   await applyLikePreferenceBoost(userId, itemId);

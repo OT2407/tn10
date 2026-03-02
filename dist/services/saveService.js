@@ -5,6 +5,7 @@ exports.deleteSave = deleteSave;
 const client_1 = require("@prisma/client");
 const errors_1 = require("../application/errors");
 const intelligenceService_1 = require("./intelligenceService");
+const preferences_1 = require("../ranking/preferences");
 const prisma = new client_1.PrismaClient();
 async function createSave(userId, itemId) {
     const item = await prisma.item.findUnique({ where: { id: itemId } });
@@ -34,6 +35,9 @@ async function createSave(userId, itemId) {
             return { created: false };
         }
         throw new errors_1.AppError(400, 'FOREIGN_KEY_VIOLATION', 'Invalid save relation');
+    }
+    if (item.category) {
+        (0, preferences_1.updatePreference)(userId, 'category', item.category, +0.5);
     }
     await (0, intelligenceService_1.applySavePreferenceBoost)(userId, itemId);
     return { created: true };

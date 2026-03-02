@@ -92,6 +92,7 @@ test('GET /api/explore/:itemId/explain returns controlled-discovery layers and e
     totalScore: number;
     breakdown: {
       personalizationLayer: number;
+      preferenceBoost: number;
       engagementQualityLayer: number;
       freshnessLayer: number;
       creatorGrowthLayer: number;
@@ -103,6 +104,7 @@ test('GET /api/explore/:itemId/explain returns controlled-discovery layers and e
 
   assert.equal(data.itemId, item.id);
   assert.ok(data.breakdown.personalizationLayer > 0);
+  assert.ok(data.breakdown.preferenceBoost > 0);
   assert.ok(data.breakdown.engagementQualityLayer > 0);
   assert.ok(data.breakdown.freshnessLayer > 0);
   assert.ok(data.breakdown.creatorGrowthLayer > 0);
@@ -110,6 +112,7 @@ test('GET /api/explore/:itemId/explain returns controlled-discovery layers and e
 
   const expectedTotal =
     data.breakdown.personalizationLayer +
+    data.breakdown.preferenceBoost +
     data.breakdown.engagementQualityLayer +
     data.breakdown.freshnessLayer +
     data.breakdown.creatorGrowthLayer +

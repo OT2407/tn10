@@ -172,6 +172,10 @@ async function buildSnapshot(userId) {
         const ageHours = Math.max(0, (Date.now() - createdAtMs) / (1000 * 60 * 60));
         const ageInDays = ageHours / 24;
         const input = {
+            userId,
+            tagNames: item.tags.map((relation) => relation.tag.name),
+            category: item.category,
+            designerId: item.sellerId,
             tagWeight: item.tags.reduce((sum, relation) => sum + (tagWeights[relation.tag.name] ?? 0), 0),
             categoryWeight: item.category === null ? 0 : categoryWeights[item.category] ?? 0,
             designerWeight: item.sellerId === null ? 0 : designerWeights[item.sellerId] ?? 0,
@@ -197,9 +201,15 @@ async function buildSnapshot(userId) {
             return entry;
         }
         if (seenDesigners.has(entry.item.sellerId)) {
+            const diversityPenalty = diversity_1.DIVERSITY.softRepeatPenalty;
             return {
                 ...entry,
-                score: entry.score - diversity_1.DIVERSITY.softRepeatPenalty,
+                score: entry.score - diversityPenalty,
+                breakdown: {
+                    ...entry.breakdown,
+                    diversityPenalty,
+                    totalScore: entry.breakdown.totalScore - diversityPenalty,
+                },
             };
         }
         seenDesigners.add(entry.item.sellerId);

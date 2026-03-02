@@ -229,6 +229,10 @@ async function buildSnapshot(userId: string): Promise<RankedSnapshot> {
       const ageInDays = ageHours / 24;
 
       const input = {
+        userId,
+        tagNames: item.tags.map((relation) => relation.tag.name),
+        category: item.category,
+        designerId: item.sellerId,
         tagWeight: item.tags.reduce((sum, relation) => sum + (tagWeights[relation.tag.name] ?? 0), 0),
         categoryWeight: item.category === null ? 0 : categoryWeights[item.category] ?? 0,
         designerWeight: item.sellerId === null ? 0 : designerWeights[item.sellerId] ?? 0,

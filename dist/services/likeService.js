@@ -5,10 +5,14 @@ exports.deleteLike = deleteLike;
 const client_1 = require("@prisma/client");
 const errors_1 = require("../application/errors");
 const intelligenceService_1 = require("./intelligenceService");
+const preferences_1 = require("../ranking/preferences");
 const prisma = new client_1.PrismaClient();
 const MAX_LIKES_PER_MINUTE = 30;
 async function createLike(userId, itemId) {
-    const item = await prisma.item.findUnique({ where: { id: itemId } });
+    const item = await prisma.item.findUnique({
+        where: { id: itemId },
+        include: { tags: { include: { tag: true } } },
+    });
     if (!item) {
         throw new errors_1.AppError(404, 'ITEM_NOT_FOUND', 'Item not found');
     }
@@ -48,6 +52,12 @@ async function createLike(userId, itemId) {
             return { created: false };
         }
         throw new errors_1.AppError(400, 'FOREIGN_KEY_VIOLATION', 'Invalid like relation');
+    }
+    for (const relation of item.tags) {
+        (0, preferences_1.updatePreference)(userId, 'tag', relation.tag.name, +1);
+    }
+    if (item.sellerId) {
+        (0, preferences_1.updatePreference)(userId, 'designer', item.sellerId, +1);
     }
     await (0, intelligenceService_1.applyLikePreferenceBoost)(userId, itemId);
     return { created: true };

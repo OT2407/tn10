@@ -1,4 +1,8 @@
 export interface RankingInput {
+  userId: string;
+  tagNames: string[];
+  category: string | null;
+  designerId: string | null;
   tagWeight: number;
   categoryWeight: number;
   designerWeight: number;
@@ -12,6 +16,7 @@ export interface RankingInput {
 
 export interface LayerBreakdown {
   personalizationLayer: number;
+  preferenceBoost: number;
   engagementQualityLayer: number;
   freshnessLayer: number;
   creatorGrowthLayer: number;

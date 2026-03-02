@@ -6,9 +6,22 @@ import {
   EXPLORATION,
 } from "./constants";
 import { DIVERSITY } from "./diversity";
+import { getPreference } from './preferences';
 import { RankingInput, LayerBreakdown } from "./types";
 
 export function computeScore(input: RankingInput): LayerBreakdown {
+  const pref = getPreference(input.userId);
+
+  const tagPreferenceBoost = input.tagNames.reduce(
+    (sum, tagName) => sum + (pref.likedTags[tagName] || 0),
+    0
+  );
+
+  const preferenceBoost =
+    tagPreferenceBoost +
+    (input.category ? (pref.likedCategories[input.category] || 0) : 0) +
+    (input.designerId ? (pref.followedDesigners[input.designerId] || 0) : 0);
+
   const personalizationLayer =
     input.tagWeight * PERSONALIZATION_WEIGHTS.tag +
     input.categoryWeight * PERSONALIZATION_WEIGHTS.category +
@@ -37,6 +50,7 @@ export function computeScore(input: RankingInput): LayerBreakdown {
 
   const baseScore =
     personalizationLayer +
+    preferenceBoost +
     engagementQualityLayer +
     freshnessLayer +
     creatorGrowthLayer +
@@ -46,6 +60,7 @@ export function computeScore(input: RankingInput): LayerBreakdown {
   // Diversity soft penalty (session-level applied by caller)
   return {
     personalizationLayer,
+    preferenceBoost,
     engagementQualityLayer,
     freshnessLayer,
     creatorGrowthLayer,

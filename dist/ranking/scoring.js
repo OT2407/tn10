@@ -2,7 +2,13 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.computeScore = computeScore;
 const constants_1 = require("./constants");
+const preferences_1 = require("./preferences");
 function computeScore(input) {
+    const pref = (0, preferences_1.getPreference)(input.userId);
+    const tagPreferenceBoost = input.tagNames.reduce((sum, tagName) => sum + (pref.likedTags[tagName] || 0), 0);
+    const preferenceBoost = tagPreferenceBoost +
+        (input.category ? (pref.likedCategories[input.category] || 0) : 0) +
+        (input.designerId ? (pref.followedDesigners[input.designerId] || 0) : 0);
     const personalizationLayer = input.tagWeight * constants_1.PERSONALIZATION_WEIGHTS.tag +
         input.categoryWeight * constants_1.PERSONALIZATION_WEIGHTS.category +
         input.designerWeight * constants_1.PERSONALIZATION_WEIGHTS.designer;
@@ -18,6 +24,7 @@ function computeScore(input) {
         : 0;
     const explorationNoise = Math.random() * constants_1.EXPLORATION.maxNoise;
     const baseScore = personalizationLayer +
+        preferenceBoost +
         engagementQualityLayer +
         freshnessLayer +
         creatorGrowthLayer +
@@ -26,6 +33,7 @@ function computeScore(input) {
     // Diversity soft penalty (session-level applied by caller)
     return {
         personalizationLayer,
+        preferenceBoost,
         engagementQualityLayer,
         freshnessLayer,
         creatorGrowthLayer,

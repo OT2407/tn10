@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../application/errors';
 import { applySavePreferenceBoost } from './intelligenceService';
+import { updatePreference } from '../ranking/preferences';
 
 const prisma = new PrismaClient();
 
@@ -9,7 +10,7 @@ interface SaveMutationResult {
 }
 
 export async function createSave(userId: string, itemId: string): Promise<SaveMutationResult> {
-  const item = await prisma.item.findUnique({ where: { id: itemId } });
+  const item = await (prisma.item as any).findUnique({ where: { id: itemId } }) as any;
   if (!item) {
     throw new AppError(404, 'ITEM_NOT_FOUND', 'Item not found');
   }
@@ -38,6 +39,10 @@ export async function createSave(userId: string, itemId: string): Promise<SaveMu
       return { created: false };
     }
     throw new AppError(400, 'FOREIGN_KEY_VIOLATION', 'Invalid save relation');
+  }
+
+  if (item.category) {
+    updatePreference(userId, 'category', item.category, +0.5);
   }
 
   await applySavePreferenceBoost(userId, itemId);
