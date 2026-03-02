@@ -5,6 +5,7 @@ import {
   CREATOR_GROWTH,
   EXPLORATION,
 } from "./constants";
+import { DIVERSITY } from "./diversity";
 import { RankingInput, LayerBreakdown } from "./types";
 
 export function computeScore(input: RankingInput): LayerBreakdown {
@@ -20,9 +21,7 @@ export function computeScore(input: RankingInput): LayerBreakdown {
       input.saves7d * ENGAGEMENT_WEIGHTS.saves) *
     qualityDecay;
 
-  const freshnessLayer = Math.exp(
-    -input.ageInHours / FRESHNESS.halfLifeHours
-  );
+  const freshnessLayer = Math.exp(-input.ageInHours / FRESHNESS.halfLifeHours);
 
   const creatorGrowthLayer =
     1 / Math.log(2 + Math.max(0, input.followerCount));
@@ -36,7 +35,7 @@ export function computeScore(input: RankingInput): LayerBreakdown {
   const explorationNoise =
     Math.random() * EXPLORATION.maxNoise;
 
-  const totalScore =
+  const baseScore =
     personalizationLayer +
     engagementQualityLayer +
     freshnessLayer +
@@ -44,6 +43,7 @@ export function computeScore(input: RankingInput): LayerBreakdown {
     emergingBoost +
     explorationNoise;
 
+  // Diversity soft penalty (session-level applied by caller)
   return {
     personalizationLayer,
     engagementQualityLayer,
@@ -51,6 +51,6 @@ export function computeScore(input: RankingInput): LayerBreakdown {
     creatorGrowthLayer,
     emergingBoost,
     explorationNoise,
-    totalScore,
+    totalScore: baseScore,
   };
 }
