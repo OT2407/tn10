@@ -4,3 +4,4 @@ node_modules
 
 /generated/prisma
 tn10.db
+prisma/tn10.db
