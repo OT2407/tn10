@@ -1,6 +1,6 @@
-# TN10 ACTION PROMPTS (COPY & PASTE FILE)
+# TN10 ACTION & REPORT PROMPTS (SINGLE FILE)
 
-Save this as `PROMPTS.md` in your project root. All actions in one place.
+Save as `PROMPTS.md` in project root. Use for all actions and reporting.
 
 ---
 
@@ -38,17 +38,7 @@ git status
 
 ---
 
-## 🟢 COMMIT & PUSH (post-debug)
-
-```bash id="pushall"
-git add . && \
-git commit -m "chore: post-phase debug snapshot" && \
-git push origin ranking/phase-3-diversity-balancing
-```
-
----
-
-## 🟢 VIEW RECENT COMMITS
+## 🟢 RECENT COMMITS
 
 ```bash id="log"
 git log --oneline --max-count=10
@@ -56,7 +46,7 @@ git log --oneline --max-count=10
 
 ---
 
-## 🟢 CHECK REMOTE
+## 🟢 REMOTES
 
 ```bash id="remotes"
 git remote -v
@@ -73,14 +63,45 @@ Hosted on **GitHub**.
 
 ---
 
+## 🟢 REPORT SAMPLE (paste to me)
+
+```json id="report"
+{
+  "summary": "Describe what you tested",
+  "explain_output": "...",
+  "feed_sample": "...",
+  "notes": [
+    "behavior observations",
+    "duplicates",
+    "fairness issues"
+  ]
+}
+```
+
+I will analyze and provide next steps.
+
+---
+
+## 🟢 COMMIT AFTER REPORT
+
+```bash id="postreport"
+git add . && \
+git commit -m "chore: post-phase report snapshot"
+```
+
+---
+
 ## NEXT
 
-Use this single file for all actions.
+Use this file for:
+
+* actions
+* reports
+* history
+* Phase transitions
 
 Send outputs and I will:
 
 ✔ analyze
+✔ refine personalization
 ✔ continue Phase 4
-✔ keep history clean
-
-We proceed deliberately 🚀
