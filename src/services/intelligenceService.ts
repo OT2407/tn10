@@ -1,5 +1,8 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { getEnv } from '../infrastructure/env';
+import { computeScore } from '../ranking/scoring';
+import type { LayerBreakdown } from '../ranking/types';
+import { getSnapshot, setSnapshot } from '../cache/feedSnapshot';
+import { logRankingTelemetry } from '../telemetry/rankingTelemetry';
 
 const prisma = new PrismaClient();
 
@@ -7,18 +10,6 @@ const LIKE_TAG_WEIGHT = 1;
 const SAVE_TAG_WEIGHT = 3;
 const FOLLOW_DESIGNER_WEIGHT = 2;
 const PURCHASE_CATEGORY_WEIGHT = 4;
-
-const PERSONALIZATION_TAG_MULTIPLIER = 1.0;
-const PERSONALIZATION_CATEGORY_MULTIPLIER = 0.8;
-const PERSONALIZATION_DESIGNER_MULTIPLIER = 1.2;
-
-const ENGAGEMENT_LIKES_WEIGHT = 1.0;
-const ENGAGEMENT_SAVES_WEIGHT = 1.5;
-const ENGAGEMENT_AGE_DECAY_FACTOR = 0.15;
-
-const FRESHNESS_HALF_LIFE_HOURS = 72;
-const EXPLORATION_NOISE_MAX = 0.2;
-const SNAPSHOT_TTL_MS = 5 * 60 * 1000;
 
 export interface ExplorePageInput {
   userId: string;
@@ -40,29 +31,15 @@ export interface ExplorePage {
   nextCursor: string | null;
 }
 
-export interface ExploreScoreBreakdown {
-  personalizationLayer: number;
-  engagementQualityLayer: number;
-  freshnessLayer: number;
-  creatorGrowthLayer: number;
-  explorationNoise: number;
-  totalScore: number;
-  tagWeight: number;
-  categoryWeight: number;
-  designerWeight: number;
-  trendingScore: number;
-  recencyWeight: number;
-}
-
 type WeightMap = Record<string, number>;
 
 interface RankedSnapshot {
-  createdAt: number;
   rankedItems: ExploreScoredItem[];
-  breakdownByItemId: Map<string, ExploreScoreBreakdown>;
+  breakdownByItemId: Map<string, LayerBreakdown>;
+  expiresAt: number;
 }
 
-const rankingCache = new Map<string, RankedSnapshot>();
+const rankingDetailStore = new Map<string, RankedSnapshot>();
 
 function normalizeWeightMap(value: Prisma.JsonValue): WeightMap {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -99,6 +76,11 @@ async function getOrCreatePreferenceTx(tx: Prisma.TransactionClient, userId: str
   });
 }
 
+function invalidateUserSnapshot(userId: string): void {
+  rankingDetailStore.delete(userId);
+  setSnapshot(userId, []);
+}
+
 export async function applyLikePreferenceBoost(userId: string, itemId: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const item = await tx.item.findUnique({
@@ -122,7 +104,7 @@ export async function applyLikePreferenceBoost(userId: string, itemId: string): 
     });
   });
 
-  rankingCache.delete(userId);
+  invalidateUserSnapshot(userId);
 }
 
 export async function applySavePreferenceBoost(userId: string, itemId: string): Promise<void> {
@@ -148,7 +130,7 @@ export async function applySavePreferenceBoost(userId: string, itemId: string): 
     });
   });
 
-  rankingCache.delete(userId);
+  invalidateUserSnapshot(userId);
 }
 
 export async function applyFollowPreferenceBoost(userId: string, followingId: string): Promise<void> {
@@ -164,7 +146,7 @@ export async function applyFollowPreferenceBoost(userId: string, followingId: st
     });
   });
 
-  rankingCache.delete(userId);
+  invalidateUserSnapshot(userId);
 }
 
 export async function applyPurchasePreferenceBoost(userId: string, itemId: string): Promise<void> {
@@ -185,98 +167,7 @@ export async function applyPurchasePreferenceBoost(userId: string, itemId: strin
     });
   });
 
-  rankingCache.delete(userId);
-}
-
-function decayByAge(createdAt: Date, factor: number): number {
-  const ageDays = Math.max(0, (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-  return Math.exp(-factor * ageDays);
-}
-
-function calculateFreshnessLayer(createdAt: Date): number {
-  const ageHours = Math.max(0, (Date.now() - createdAt.getTime()) / (1000 * 60 * 60));
-  return Math.exp((-Math.log(2) * ageHours) / FRESHNESS_HALF_LIFE_HOURS);
-}
-
-function hashNoise(seed: string): number {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash * 31 + seed.charCodeAt(i)) % 1000003;
-  }
-  return (hash / 1000003) * EXPLORATION_NOISE_MAX;
-}
-
-function computeItemScore(
-  input: {
-    item: {
-      id: string;
-      category: string | null;
-      sellerId: string | null;
-      createdAt: Date;
-      tags: Array<{ tag: { name: string } }>;
-      likes: Array<{ createdAt: Date }>;
-      saves: Array<{ createdAt: Date }>;
-    };
-    weights: { tagWeights: WeightMap; categoryWeights: WeightMap; designerWeights: WeightMap };
-    followerCount: number;
-    sellerItemCount: number;
-    snapshotBucket: string;
-    userId: string;
-  }
-): ExploreScoreBreakdown {
-  const tagWeightRaw = input.item.tags.reduce(
-    (sum, relation) => sum + (input.weights.tagWeights[relation.tag.name] ?? 0),
-    0
-  );
-  const categoryWeightRaw =
-    input.item.category === null ? 0 : input.weights.categoryWeights[input.item.category] ?? 0;
-  const designerWeightRaw =
-    input.item.sellerId === null ? 0 : input.weights.designerWeights[input.item.sellerId] ?? 0;
-
-  const tagWeight = tagWeightRaw * PERSONALIZATION_TAG_MULTIPLIER;
-  const categoryWeight = categoryWeightRaw * PERSONALIZATION_CATEGORY_MULTIPLIER;
-  const designerWeight = designerWeightRaw * PERSONALIZATION_DESIGNER_MULTIPLIER;
-  const personalizationLayer = tagWeight + categoryWeight + designerWeight;
-
-  const likesScore = input.item.likes.reduce(
-    (sum, like) => sum + ENGAGEMENT_LIKES_WEIGHT * decayByAge(like.createdAt, ENGAGEMENT_AGE_DECAY_FACTOR),
-    0
-  );
-  const savesScore = input.item.saves.reduce(
-    (sum, save) => sum + ENGAGEMENT_SAVES_WEIGHT * decayByAge(save.createdAt, ENGAGEMENT_AGE_DECAY_FACTOR),
-    0
-  );
-  const engagementQualityLayer = likesScore + savesScore;
-
-  const freshnessLayer = calculateFreshnessLayer(input.item.createdAt);
-
-  const baseCreatorGrowth = 1 / Math.log(2 + Math.max(0, input.followerCount));
-  const emergingBoost =
-    input.followerCount < 50 && input.sellerItemCount < 5 ? 1.5 : 0;
-  const creatorGrowthLayer = baseCreatorGrowth + emergingBoost;
-
-  const explorationNoise = hashNoise(`${input.userId}:${input.item.id}:${input.snapshotBucket}`);
-
-  const totalScore =
-    personalizationLayer +
-    engagementQualityLayer +
-    freshnessLayer +
-    creatorGrowthLayer +
-    explorationNoise;
-
-  return {
-    personalizationLayer,
-    engagementQualityLayer,
-    freshnessLayer,
-    creatorGrowthLayer,
-    explorationNoise,
-    totalScore,
-    tagWeight,
-    categoryWeight,
-    designerWeight,
-    trendingScore: likesScore + savesScore,
-    recencyWeight: freshnessLayer,
-  };
+  invalidateUserSnapshot(userId);
 }
 
 async function buildSnapshot(userId: string): Promise<RankedSnapshot> {
@@ -292,16 +183,18 @@ async function buildSnapshot(userId: string): Promise<RankedSnapshot> {
       tags: { include: { tag: true } },
       likes: {
         where: { createdAt: { gte: sevenDaysAgo } },
-        select: { createdAt: true },
+        select: { id: true },
       },
       saves: {
         where: { createdAt: { gte: sevenDaysAgo } },
-        select: { createdAt: true },
+        select: { id: true },
       },
     },
   });
 
-  const sellerIds = Array.from(new Set(items.map((item) => item.sellerId).filter((value): value is string => value !== null)));
+  const sellerIds = Array.from(
+    new Set(items.map((item) => item.sellerId).filter((value): value is string => value !== null))
+  );
 
   const [followerCounts, itemCounts] = await Promise.all([
     prisma.follow.groupBy({
@@ -328,85 +221,89 @@ async function buildSnapshot(userId: string): Promise<RankedSnapshot> {
     }
   }
 
-  const snapshotBucket = `${Math.floor(Date.now() / SNAPSHOT_TTL_MS)}`;
+  const rankedWithBreakdown = await Promise.all(
+    items.map(async (item) => {
+      const createdAtMs = item.createdAt.getTime();
+      const ageHours = Math.max(0, (Date.now() - createdAtMs) / (1000 * 60 * 60));
+      const ageInDays = ageHours / 24;
 
-  const rankedItems: ExploreScoredItem[] = [];
-  const breakdownByItemId = new Map<string, ExploreScoreBreakdown>();
+      const input = {
+        tagWeight: item.tags.reduce((sum, relation) => sum + (tagWeights[relation.tag.name] ?? 0), 0),
+        categoryWeight: item.category === null ? 0 : categoryWeights[item.category] ?? 0,
+        designerWeight: item.sellerId === null ? 0 : designerWeights[item.sellerId] ?? 0,
+        likes7d: item.likes.length,
+        saves7d: item.saves.length,
+        ageInHours: ageHours,
+        ageInDays,
+        followerCount: item.sellerId === null ? 0 : followerMap.get(item.sellerId) ?? 0,
+        itemCount: item.sellerId === null ? 0 : itemCountMap.get(item.sellerId) ?? 0,
+      };
 
-  for (const item of items) {
-    const breakdown = computeItemScore({
-      item,
-      weights: { tagWeights, categoryWeights, designerWeights },
-      followerCount: item.sellerId === null ? 0 : followerMap.get(item.sellerId) ?? 0,
-      sellerItemCount: item.sellerId === null ? 0 : itemCountMap.get(item.sellerId) ?? 0,
-      snapshotBucket,
-      userId,
-    });
+      const breakdown = computeScore(input);
 
-    breakdownByItemId.set(item.id, breakdown);
-    rankedItems.push({
-      itemId: item.id,
-      score: breakdown.totalScore,
-      title: item.title,
-      category: item.category,
-      sellerId: item.sellerId,
-      createdAt: item.createdAt,
-    });
-  }
-
-  rankedItems.sort((a, b) => {
-    if (b.score !== a.score) {
-      return b.score - a.score;
-    }
-    return a.itemId.localeCompare(b.itemId);
-  });
-
-  if (getEnv().RANKING_TELEMETRY_ENABLED) {
-    const telemetryRows: Array<{
-      itemId: string;
-      userId: string;
-      totalScore: number;
-      layerBreakdown: Prisma.InputJsonValue;
-    }> = [];
-
-    for (const entry of rankedItems) {
-      const breakdown = breakdownByItemId.get(entry.itemId);
-      if (!breakdown) {
-        continue;
-      }
-      telemetryRows.push({
-        itemId: entry.itemId,
+      await logRankingTelemetry(
         userId,
-        totalScore: entry.score,
-        layerBreakdown: breakdown as unknown as Prisma.InputJsonValue,
-      });
-    }
+        item.id,
+        breakdown,
+        process.env.RANKING_DEBUG === 'true'
+      );
 
-    if (telemetryRows.length > 0) {
-      await prisma.rankingTelemetry.createMany({ data: telemetryRows });
-    }
+      return {
+        item,
+        breakdown,
+        score: breakdown.totalScore,
+      };
+    })
+  );
+
+  rankedWithBreakdown.sort((a, b) => b.score - a.score);
+
+  const rankedItems: ExploreScoredItem[] = rankedWithBreakdown.map((entry) => ({
+    itemId: entry.item.id,
+    score: entry.score,
+    title: entry.item.title,
+    category: entry.item.category,
+    sellerId: entry.item.sellerId,
+    createdAt: entry.item.createdAt,
+  }));
+
+  const breakdownByItemId = new Map<string, LayerBreakdown>();
+  for (const entry of rankedWithBreakdown) {
+    breakdownByItemId.set(entry.item.id, entry.breakdown);
   }
+
+  const orderedIds = rankedWithBreakdown.map((entry) => entry.item.id);
+  setSnapshot(userId, orderedIds);
+
+  const ttlMs = 5 * 60 * 1000;
 
   return {
-    createdAt: Date.now(),
     rankedItems,
     breakdownByItemId,
+    expiresAt: Date.now() + ttlMs,
   };
 }
 
-async function getSnapshot(userId: string): Promise<RankedSnapshot> {
-  const cached = rankingCache.get(userId);
-  if (cached && Date.now() - cached.createdAt < SNAPSHOT_TTL_MS) {
+async function getOrBuildSnapshot(userId: string): Promise<RankedSnapshot> {
+  const cachedIds = getSnapshot(userId);
+  const cached = rankingDetailStore.get(userId);
+
+  if (
+    cachedIds !== null &&
+    cached !== undefined &&
+    Date.now() <= cached.expiresAt &&
+    cachedIds.length === cached.rankedItems.length
+  ) {
     return cached;
   }
 
-  const fresh = await buildSnapshot(userId);
-  rankingCache.set(userId, fresh);
-  return fresh;
+  const built = await buildSnapshot(userId);
+  rankingDetailStore.set(userId, built);
+  return built;
 }
 
 export async function getRankedExplorePage(input: ExplorePageInput): Promise<ExplorePage> {
-  const snapshot = await getSnapshot(input.userId);
+  const snapshot = await getOrBuildSnapshot(input.userId);
 
   let startIndex = 0;
   if (input.cursor !== undefined) {
@@ -429,7 +326,7 @@ export async function getRankedExplorePage(input: ExplorePageInput): Promise<Exp
 export async function getExploreItemScoreBreakdown(
   userId: string,
   itemId: string
-): Promise<ExploreScoreBreakdown | null> {
-  const snapshot = await getSnapshot(userId);
+): Promise<LayerBreakdown | null> {
+  const snapshot = await getOrBuildSnapshot(userId);
   return snapshot.breakdownByItemId.get(itemId) ?? null;
 }

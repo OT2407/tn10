@@ -88,35 +88,36 @@ test('GET /api/explore/:itemId/explain returns controlled-discovery layers and e
   assert.equal(response.body.success, true);
 
   const data = response.body.data as {
-    personalizationLayer: number;
-    engagementQualityLayer: number;
-    freshnessLayer: number;
-    creatorGrowthLayer: number;
-    explorationNoise: number;
+    itemId: string;
     totalScore: number;
-    tagWeight: number;
-    categoryWeight: number;
-    designerWeight: number;
-    trendingScore: number;
-    recencyWeight: number;
+    breakdown: {
+      personalizationLayer: number;
+      engagementQualityLayer: number;
+      freshnessLayer: number;
+      creatorGrowthLayer: number;
+      emergingBoost: number;
+      explorationNoise: number;
+      totalScore: number;
+    };
   };
 
-  assert.ok(data.personalizationLayer > 0);
-  assert.ok(data.engagementQualityLayer > 0);
-  assert.ok(data.freshnessLayer > 0);
-  assert.ok(data.creatorGrowthLayer > 0);
-  assert.ok(data.explorationNoise >= 0 && data.explorationNoise <= 0.2);
+  assert.equal(data.itemId, item.id);
+  assert.ok(data.breakdown.personalizationLayer > 0);
+  assert.ok(data.breakdown.engagementQualityLayer > 0);
+  assert.ok(data.breakdown.freshnessLayer > 0);
+  assert.ok(data.breakdown.creatorGrowthLayer > 0);
+  assert.ok(data.breakdown.explorationNoise >= 0 && data.breakdown.explorationNoise <= 0.2);
 
   const expectedTotal =
-    data.personalizationLayer +
-    data.engagementQualityLayer +
-    data.freshnessLayer +
-    data.creatorGrowthLayer +
-    data.explorationNoise;
+    data.breakdown.personalizationLayer +
+    data.breakdown.engagementQualityLayer +
+    data.breakdown.freshnessLayer +
+    data.breakdown.creatorGrowthLayer +
+    data.breakdown.emergingBoost +
+    data.breakdown.explorationNoise;
 
   assert.ok(Math.abs(data.totalScore - expectedTotal) < 0.000001);
-  assert.ok(Math.abs(data.recencyWeight - data.freshnessLayer) < 0.000001);
-  assert.ok(Math.abs(data.trendingScore - data.engagementQualityLayer) < 0.000001);
+  assert.ok(Math.abs(data.breakdown.totalScore - expectedTotal) < 0.000001);
 });
 
 test('feed stability keeps consistent scores within snapshot ttl', async () => {

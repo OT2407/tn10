@@ -178,7 +178,14 @@ router.get('/explore/:itemId/explain', authMiddleware, async (req, res, next) =>
       throw new AppError(404, 'ITEM_NOT_FOUND', 'Item not found');
     }
 
-    res.status(200).json({ success: true, data: breakdown });
+    res.status(200).json({
+      success: true,
+      data: {
+        itemId,
+        breakdown,
+        totalScore: breakdown.totalScore,
+      },
+    });
   } catch (err) {
     next(err);
   }

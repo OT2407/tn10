@@ -113,19 +113,20 @@ async function loginAndGetToken() {
     strict_1.default.equal(response.status, 200);
     strict_1.default.equal(response.body.success, true);
     const data = response.body.data;
-    strict_1.default.ok(data.personalizationLayer > 0);
-    strict_1.default.ok(data.engagementQualityLayer > 0);
-    strict_1.default.ok(data.freshnessLayer > 0);
-    strict_1.default.ok(data.creatorGrowthLayer > 0);
-    strict_1.default.ok(data.explorationNoise >= 0 && data.explorationNoise <= 0.2);
-    const expectedTotal = data.personalizationLayer +
-        data.engagementQualityLayer +
-        data.freshnessLayer +
-        data.creatorGrowthLayer +
-        data.explorationNoise;
+    strict_1.default.equal(data.itemId, item.id);
+    strict_1.default.ok(data.breakdown.personalizationLayer > 0);
+    strict_1.default.ok(data.breakdown.engagementQualityLayer > 0);
+    strict_1.default.ok(data.breakdown.freshnessLayer > 0);
+    strict_1.default.ok(data.breakdown.creatorGrowthLayer > 0);
+    strict_1.default.ok(data.breakdown.explorationNoise >= 0 && data.breakdown.explorationNoise <= 0.2);
+    const expectedTotal = data.breakdown.personalizationLayer +
+        data.breakdown.engagementQualityLayer +
+        data.breakdown.freshnessLayer +
+        data.breakdown.creatorGrowthLayer +
+        data.breakdown.emergingBoost +
+        data.breakdown.explorationNoise;
     strict_1.default.ok(Math.abs(data.totalScore - expectedTotal) < 0.000001);
-    strict_1.default.ok(Math.abs(data.recencyWeight - data.freshnessLayer) < 0.000001);
-    strict_1.default.ok(Math.abs(data.trendingScore - data.engagementQualityLayer) < 0.000001);
+    strict_1.default.ok(Math.abs(data.breakdown.totalScore - expectedTotal) < 0.000001);
 });
 (0, node_test_1.default)('feed stability keeps consistent scores within snapshot ttl', async () => {
     const token = await loginAndGetToken();
