@@ -1,5 +1,19 @@
-const { computeScore } = require('../src/ranking/scoring');
-const { getPreference } = require('../src/ranking/preferences');
+function loadGetPreference() {
+  try {
+    // Prefer compiled JS when available (works in plain Node runtime)
+    return require('../dist/ranking/preferences').getPreference;
+  } catch {
+    // Fallback placeholder when dist has not been built yet
+    return (userId) => ({
+      userId,
+      likedTags: {},
+      likedCategories: {},
+      followedDesigners: {},
+    });
+  }
+}
+
+const getPreference = loadGetPreference();
 
 const itemId = process.argv[3];
 if (!itemId) {
