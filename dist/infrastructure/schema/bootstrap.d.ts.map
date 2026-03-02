@@ -1,0 +1,1 @@
+{"version":3,"file":"bootstrap.d.ts","sourceRoot":"","sources":["../../../src/infrastructure/schema/bootstrap.ts"],"names":[],"mappings":"AAoaA,MAAM,WAAW,wBAAwB;IACvC,EAAE,EAAE,OAAO,CAAC;IACZ,aAAa,EAAE,MAAM,EAAE,CAAC;IACxB,cAAc,EAAE,MAAM,EAAE,CAAC;CAC1B;AAgVD,wBAAsB,kBAAkB,IAAI,OAAO,CAAC,IAAI,CAAC,CAmCxD;AAED,wBAAsB,kBAAkB,IAAI,OAAO,CAAC,wBAAwB,CAAC,CAwB5E"}

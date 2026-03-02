@@ -1,0 +1,1 @@
+{"version":3,"file":"followService.d.ts","sourceRoot":"","sources":["../../src/services/followService.ts"],"names":[],"mappings":"AAMA,UAAU,oBAAoB;IAC5B,OAAO,EAAE,OAAO,CAAC;CAClB;AAED,wBAAsB,YAAY,CAAC,UAAU,EAAE,MAAM,EAAE,WAAW,EAAE,MAAM,GAAG,OAAO,CAAC,oBAAoB,CAAC,CAsCzG;AAED,wBAAsB,YAAY,CAAC,UAAU,EAAE,MAAM,EAAE,WAAW,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAIzF"}

@@ -1,0 +1,361 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./tn10.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                 String        @id @default(cuid())
+  email              String        @unique
+  password           String
+  role               String        @default("user")
+  createdAt          DateTime      @default(now())
+  items              Item[]
+  sellerItems        Item[]        @relation("item_seller")
+  wallet             Wallet?
+  buyerTransactions  Transaction[] @relation("buyer")
+  sellerTransactions Transaction[] @relation("seller")
+  buyerOrders        Order[]       @relation("order_buyer")
+  sellerOrders       Order[]       @relation("order_seller")
+  contracts          Contract[]
+  collaborationRoles CollaborationMember[]
+  sentMessages       Message[]
+  reviews            Review[]
+  brands             Brand[]
+  following          Follow[]      @relation("follow_follower")
+  followers          Follow[]      @relation("follow_following")
+  likes              Like[]
+  saves              Save[]
+  preference         UserPreference?
+  rankingTelemetries RankingTelemetry[]
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+  REFUND
+}
+
+model Item {
+  id           String        @id @default(cuid())
+  ownerId      String
+  owner        User          @relation(fields: [ownerId], references: [id])
+  name         String?
+  sellerId     String?
+  seller       User?         @relation("item_seller", fields: [sellerId], references: [id])
+  title        String?
+  description  String?
+  category     String?
+  price        Int?
+  previewUrl   String?
+  deliveryType String?
+  metadata     Json?
+  brandId      String?
+  brand        Brand?        @relation(fields: [brandId], references: [id])
+  collaborationId String?
+  collaboration Collaboration? @relation(fields: [collaborationId], references: [id])
+  originalityStatus String    @default("SELF_DECLARED")
+  version      Int           @default(0)
+  currentHash  String?
+  freezes      Freeze[]
+  transactions Transaction[]
+  orders       Order[]
+  tags         ItemTag[]
+  likes        Like[]
+  saves        Save[]
+  createdAt    DateTime      @default(now())
+  reviews      Review[]
+  rankingTelemetries RankingTelemetry[]
+
+  @@index([ownerId])
+  @@index([sellerId])
+  @@index([category])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  follower    User     @relation("follow_follower", fields: [followerId], references: [id])
+  following   User     @relation("follow_following", fields: [followingId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  itemId    String
+  user      User     @relation(fields: [userId], references: [id])
+  item      Item     @relation(fields: [itemId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, itemId])
+  @@index([itemId])
+}
+
+model Save {
+  id        String   @id @default(cuid())
+  userId    String
+  itemId    String
+  user      User     @relation(fields: [userId], references: [id])
+  item      Item     @relation(fields: [itemId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, itemId])
+  @@index([itemId])
+}
+
+model UserPreference {
+  userId           String   @id
+  user             User     @relation(fields: [userId], references: [id])
+  tagWeights       Json
+  categoryWeights  Json
+  designerWeights  Json
+  updatedAt        DateTime @updatedAt
+}
+
+model Order {
+  id             String          @id @default(cuid())
+  buyerId        String
+  sellerId       String
+  itemId         String
+  buyer          User            @relation("order_buyer", fields: [buyerId], references: [id])
+  seller         User            @relation("order_seller", fields: [sellerId], references: [id])
+  item           Item            @relation(fields: [itemId], references: [id])
+  amount         Int
+  status         String          @default("pending")
+  paymentIntents PaymentIntent[]
+  review         Review?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([itemId])
+}
+
+model PaymentIntent {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+  amount      Int
+  currency    String   @default("TRY")
+  status      String   @default("requires_confirmation")
+  provider    String   @default("placeholder")
+  externalRef String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orderId])
+}
+
+model Wallet {
+  id           String              @id @default(cuid())
+  ownerId      String              @unique
+  owner        User                @relation(fields: [ownerId], references: [id])
+  balance      Int
+  version      Int                 @default(0)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  transactions WalletTransaction[]
+
+  @@index([ownerId])
+}
+
+model WalletTransaction {
+  id          String                @id @default(cuid())
+  walletId    String
+  wallet      Wallet                @relation(fields: [walletId], references: [id])
+  type        WalletTransactionType
+  amount      Int
+  reference   String
+  referenceId String?
+  createdAt   DateTime              @default(now())
+
+  @@index([walletId])
+}
+
+model Freeze {
+  id         String   @id @default(cuid())
+  itemId     String
+  item       Item     @relation(fields: [itemId], references: [id])
+  type       String
+  svg        String
+  metadata   String
+  parentHash String?
+  hash       String
+  createdAt  DateTime @default(now())
+
+  @@index([itemId])
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+  buyerId   String
+  sellerId  String
+  buyer     User     @relation("buyer", fields: [buyerId], references: [id])
+  seller    User     @relation("seller", fields: [sellerId], references: [id])
+  itemId    String
+  item      Item     @relation(fields: [itemId], references: [id])
+  escrows   Escrow[]
+  status    String
+  amount    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([buyerId])
+  @@index([sellerId])
+}
+
+model Escrow {
+  id            String       @id @default(cuid())
+  transactionId String       @unique
+  transaction   Transaction  @relation(fields: [transactionId], references: [id])
+  amount        Int
+  status        String       @default("PENDING")
+  releasedAt    DateTime?
+  createdAt     DateTime     @default(now())
+  milestones    EscrowMilestone[]
+  contracts     Contract[]
+
+  @@index([transactionId])
+}
+
+model Contract {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id])
+  title     String
+  body      String
+  escrowId  String?
+  escrow    Escrow?  @relation(fields: [escrowId], references: [id])
+  status    String   @default("DRAFT")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  conversation Conversation?
+
+  @@index([ownerId])
+}
+
+model EscrowMilestone {
+  id         String   @id @default(cuid())
+  escrowId   String
+  escrow     Escrow   @relation(fields: [escrowId], references: [id])
+  name       String
+  percentage Int
+  status     String   @default("PENDING")
+  releasedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([escrowId])
+}
+
+model Tag {
+  id    String   @id @default(cuid())
+  name  String   @unique
+  items ItemTag[]
+}
+
+model ItemTag {
+  itemId String
+  tagId  String
+  item   Item @relation(fields: [itemId], references: [id])
+  tag    Tag  @relation(fields: [tagId], references: [id])
+
+  @@id([itemId, tagId])
+  @@index([tagId])
+}
+
+model Collaboration {
+  id          String                @id @default(cuid())
+  title       String
+  description String
+  status      String                @default("DRAFT")
+  createdAt   DateTime              @default(now())
+  members     CollaborationMember[]
+  items       Item[]
+}
+
+model CollaborationMember {
+  id              String        @id @default(cuid())
+  collaborationId String
+  userId          String
+  percentage      Int
+  role            String
+  collaboration   Collaboration @relation(fields: [collaborationId], references: [id])
+  user            User          @relation(fields: [userId], references: [id])
+
+  @@index([collaborationId])
+  @@index([userId])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  orderId    String   @unique
+  itemId     String
+  reviewerId String
+  rating     Int
+  comment    String
+  createdAt  DateTime @default(now())
+  order      Order    @relation(fields: [orderId], references: [id])
+  item       Item     @relation(fields: [itemId], references: [id])
+  reviewer   User     @relation(fields: [reviewerId], references: [id])
+
+  @@index([itemId])
+  @@index([reviewerId])
+}
+
+model Conversation {
+  id                String    @id @default(cuid())
+  contractId        String    @unique
+  monitoringEnabled Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  contract          Contract  @relation(fields: [contractId], references: [id])
+  messages          Message[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  sender         User         @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId])
+  @@index([senderId])
+}
+
+model Brand {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  owner     User     @relation(fields: [ownerId], references: [id])
+  items     Item[]
+
+  @@index([ownerId])
+}
+
+model RankingTelemetry {
+  id             String   @id @default(cuid())
+  itemId          String
+  userId          String
+  totalScore      Float
+  layerBreakdown  Json
+  createdAt       DateTime @default(now())
+  item            Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([userId])
+  @@index([createdAt])
+}

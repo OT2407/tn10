@@ -1,0 +1,36 @@
+{
+  "name": "tn10-core",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "export JWT_SECRET=test-secret ADMIN_USER=admin ADMIN_PASS=pass RATE_LIMIT_MAX=100 RATE_LIMIT_WINDOW_MS=60000; npm run build && node --test --test-concurrency=1 dist/tests/integration/*.test.js",
+    "build": "tsc --project tsconfig.json --outDir dist --rootDir src",
+    "start:dev": "ts-node ./src/api/server.ts",
+    "typecheck": "tsc --noEmit",
+    "start:prod": "node ./dist/api/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/client": "^6.16.2",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^25.3.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "prisma": "^6.16.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/supertest": "^7.2.0",
+    "supertest": "^7.2.2"
+  }
+}

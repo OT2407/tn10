@@ -1,0 +1,61 @@
+{
+  "item": {
+    "id": "itm_001",
+    "name": "TN10 Sample Item",
+    "description": "Starter catalog item",
+    "price": 1499.9,
+    "currency": "TRY",
+    "stock": 12,
+    "isActive": true,
+    "createdAt": "2026-02-27T22:30:00.000Z",
+    "updatedAt": "2026-02-27T22:30:00.000Z"
+  },
+  "category": {
+    "id": "cat_001",
+    "name": "Electronics",
+    "description": "Main electronics category",
+    "items": [
+      {
+        "id": "itm_001",
+        "name": "TN10 Sample Item",
+        "description": "Starter catalog item",
+        "price": 1499.9,
+        "currency": "TRY",
+        "stock": 12,
+        "isActive": true,
+        "createdAt": "2026-02-27T22:30:00.000Z",
+        "updatedAt": "2026-02-27T22:30:00.000Z"
+      }
+    ],
+    "createdAt": "2026-02-27T22:30:00.000Z",
+    "updatedAt": "2026-02-27T22:30:00.000Z"
+  },
+  "order": {
+    "id": "ord_001",
+    "items": [
+      {
+        "id": "oli_001",
+        "itemId": "itm_001",
+        "quantity": 2,
+        "price": 1499.9,
+        "total": 2999.8
+      }
+    ],
+    "total": 2999.8,
+    "status": "pending",
+    "customer": {
+      "name": "Ayse Yilmaz",
+      "phone": "+90-555-123-4567",
+      "address": "Istanbul, TR"
+    },
+    "createdAt": "2026-02-27T22:35:00.000Z",
+    "updatedAt": "2026-02-27T22:35:00.000Z"
+  },
+  "user": {
+    "id": "usr_001",
+    "email": "admin@tn10.local",
+    "passwordHash": "<hashed-password>",
+    "role": "admin",
+    "createdAt": "2026-02-27T22:20:00.000Z"
+  }
+}

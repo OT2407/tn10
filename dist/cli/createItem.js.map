@@ -1,0 +1,1 @@
+{"version":3,"file":"createItem.js","sourceRoot":"","sources":["../../src/cli/createItem.ts"],"names":[],"mappings":";;AAAA,yDAAqD;AAErD,CAAC,KAAK,IAAI,EAAE;IACV,MAAM,IAAI,GAAG,MAAM,IAAA,wBAAU,EAAC,OAAO,CAAC,GAAG,CAAC,QAAS,EAAE,SAAS,CAAC,CAAC;IAChE,OAAO,CAAC,GAAG,CAAC,IAAI,CAAC,EAAE,CAAC,CAAC;AACvB,CAAC,CAAC,EAAE,CAAC"}

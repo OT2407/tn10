@@ -1,0 +1,8 @@
+import { z } from 'zod';
+
+export const ExploreQuerySchema = z.object({
+  cursor: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export type ExploreQueryInput = z.infer<typeof ExploreQuerySchema>;
