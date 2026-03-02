@@ -17,5 +17,6 @@ export interface LayerBreakdown {
   creatorGrowthLayer: number;
   emergingBoost: number;
   explorationNoise: number;
+  diversityPenalty?: number;
   totalScore: number;
 }

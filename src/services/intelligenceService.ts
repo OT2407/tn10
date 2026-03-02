@@ -266,9 +266,15 @@ async function buildSnapshot(userId: string): Promise<RankedSnapshot> {
     }
 
     if (seenDesigners.has(entry.item.sellerId)) {
+      const diversityPenalty = DIVERSITY.softRepeatPenalty;
       return {
         ...entry,
-        score: entry.score - DIVERSITY.softRepeatPenalty,
+        score: entry.score - diversityPenalty,
+        breakdown: {
+          ...entry.breakdown,
+          diversityPenalty,
+          totalScore: entry.breakdown.totalScore - diversityPenalty,
+        },
       };
     }
 

@@ -183,6 +183,7 @@ router.get('/explore/:itemId/explain', authMiddleware, async (req, res, next) =>
       data: {
         itemId,
         breakdown,
+        diversityPenalty: breakdown.diversityPenalty ?? 0,
         totalScore: breakdown.totalScore,
       },
     });

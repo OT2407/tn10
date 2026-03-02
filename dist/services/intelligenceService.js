@@ -10,6 +10,7 @@ const client_1 = require("@prisma/client");
 const scoring_1 = require("../ranking/scoring");
 const feedSnapshot_1 = require("../cache/feedSnapshot");
 const rankingTelemetry_1 = require("../telemetry/rankingTelemetry");
+const diversity_1 = require("../ranking/diversity");
 const prisma = new client_1.PrismaClient();
 const LIKE_TAG_WEIGHT = 1;
 const SAVE_TAG_WEIGHT = 3;
@@ -190,7 +191,22 @@ async function buildSnapshot(userId) {
         };
     }));
     rankedWithBreakdown.sort((a, b) => b.score - a.score);
-    const rankedItems = rankedWithBreakdown.map((entry) => ({
+    const seenDesigners = new Set();
+    const diversityAdjusted = rankedWithBreakdown.map((entry) => {
+        if (entry.item.sellerId === null) {
+            return entry;
+        }
+        if (seenDesigners.has(entry.item.sellerId)) {
+            return {
+                ...entry,
+                score: entry.score - diversity_1.DIVERSITY.softRepeatPenalty,
+            };
+        }
+        seenDesigners.add(entry.item.sellerId);
+        return entry;
+    });
+    diversityAdjusted.sort((a, b) => b.score - a.score);
+    const rankedItems = diversityAdjusted.map((entry) => ({
         itemId: entry.item.id,
         score: entry.score,
         title: entry.item.title,
@@ -199,10 +215,10 @@ async function buildSnapshot(userId) {
         createdAt: entry.item.createdAt,
     }));
     const breakdownByItemId = new Map();
-    for (const entry of rankedWithBreakdown) {
+    for (const entry of diversityAdjusted) {
         breakdownByItemId.set(entry.item.id, entry.breakdown);
     }
-    const orderedIds = rankedWithBreakdown.map((entry) => entry.item.id);
+    const orderedIds = diversityAdjusted.map((entry) => entry.item.id);
     (0, feedSnapshot_1.setSnapshot)(userId, orderedIds);
     const ttlMs = 5 * 60 * 1000;
     return {
