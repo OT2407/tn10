@@ -32,11 +32,45 @@ function loadComputeScore() {
 }
 
 async function loadItemFromDb(_itemId) {
-  // Future DB hook:
-  // - load item + engagement + creator metadata
-  // - map to computeScore input fields
-  // For now, database may not have compatible explain projection.
-  return null;
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const item = await prisma.item.findUnique({
+      where: { id: _itemId },
+      include: {
+        tags: { include: { tag: true } },
+        likes: { where: { createdAt: { gte: sevenDaysAgo } }, select: { id: true } },
+        saves: { where: { createdAt: { gte: sevenDaysAgo } }, select: { id: true } },
+      },
+    });
+
+    if (!item) {
+      await prisma.$disconnect();
+      return null;
+    }
+
+    const followerCount =
+      item.sellerId === null
+        ? 0
+        : await prisma.follow.count({ where: { followingId: item.sellerId } });
+
+    const itemCount =
+      item.sellerId === null
+        ? 0
+        : await prisma.item.count({ where: { sellerId: item.sellerId } });
+
+    await prisma.$disconnect();
+
+    return {
+      item,
+      followerCount,
+      itemCount,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function emptyBreakdown() {
@@ -64,9 +98,9 @@ if (!itemId) {
 
 async function main() {
   const preference = getPreference('demo-user');
-  const item = await loadItemFromDb(itemId);
+  const loaded = await loadItemFromDb(itemId);
 
-  if (!item) {
+  if (!loaded) {
     const breakdown = emptyBreakdown();
     console.log({
       itemId,
@@ -78,20 +112,30 @@ async function main() {
     return;
   }
 
+  const item = loaded.item;
+  const tagNames = item.tags.map((relation) => relation.tag.name);
+  const tagWeight = tagNames.reduce((sum, tagName) => sum + (preference.likedTags[tagName] || 0), 0);
+  const categoryWeight =
+    item.category === null ? 0 : preference.likedCategories[item.category] || 0;
+  const designerWeight =
+    item.sellerId === null ? 0 : preference.followedDesigners[item.sellerId] || 0;
+  const ageInHours = Math.max(0, (Date.now() - item.createdAt.getTime()) / (1000 * 60 * 60));
+  const ageInDays = ageInHours / 24;
+
   const breakdown = computeScore({
     userId: 'demo-user',
-    tagNames: item.tagNames ?? [],
-    category: item.category ?? null,
-    designerId: item.designerId ?? null,
-    tagWeight: item.tagWeight,
-    categoryWeight: item.categoryWeight,
-    designerWeight: item.designerWeight,
-    likes7d: item.likes7d,
-    saves7d: item.saves7d,
-    ageInHours: item.ageInHours,
-    ageInDays: item.ageInDays,
-    followerCount: item.followerCount,
-    itemCount: item.itemCount,
+    tagNames,
+    category: item.category,
+    designerId: item.sellerId,
+    tagWeight,
+    categoryWeight,
+    designerWeight,
+    likes7d: item.likes.length,
+    saves7d: item.saves.length,
+    ageInHours,
+    ageInDays,
+    followerCount: loaded.followerCount,
+    itemCount: loaded.itemCount,
   });
 
   console.log({
