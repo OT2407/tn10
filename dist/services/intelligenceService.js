@@ -11,6 +11,7 @@ const scoring_1 = require("../ranking/scoring");
 const feedSnapshot_1 = require("../cache/feedSnapshot");
 const rankingTelemetry_1 = require("../telemetry/rankingTelemetry");
 const diversity_1 = require("../ranking/diversity");
+const session_1 = require("../ranking/session");
 const prisma = new client_1.PrismaClient();
 const LIKE_TAG_WEIGHT = 1;
 const SAVE_TAG_WEIGHT = 3;
@@ -268,6 +269,24 @@ async function getRankedExplorePage(input) {
 }
 async function getExploreItemScoreBreakdown(userId, itemId) {
     const snapshot = await getOrBuildSnapshot(userId);
-    return snapshot.breakdownByItemId.get(itemId) ?? null;
+    const breakdown = snapshot.breakdownByItemId.get(itemId) ?? null;
+    if (breakdown) {
+        const item = await prisma.item.findUnique({
+            where: { id: itemId },
+            include: { tags: { include: { tag: true } } },
+        });
+        if (item) {
+            for (const relation of item.tags) {
+                (0, session_1.updateSession)(userId, 'tag', relation.tag.name);
+            }
+            if (item.category) {
+                (0, session_1.updateSession)(userId, 'category', item.category);
+            }
+            if (item.sellerId) {
+                (0, session_1.updateSession)(userId, 'designer', item.sellerId);
+            }
+        }
+    }
+    return breakdown;
 }
 //# sourceMappingURL=intelligenceService.js.map

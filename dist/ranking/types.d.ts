@@ -16,6 +16,7 @@ export interface RankingInput {
 export interface LayerBreakdown {
     personalizationLayer: number;
     preferenceBoost: number;
+    sessionBoost: number;
     engagementQualityLayer: number;
     freshnessLayer: number;
     creatorGrowthLayer: number;

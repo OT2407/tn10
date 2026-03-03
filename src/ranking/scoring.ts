@@ -7,10 +7,12 @@ import {
 } from "./constants";
 import { DIVERSITY } from "./diversity";
 import { getPreference } from './preferences';
+import { getSession } from './session';
 import { RankingInput, LayerBreakdown } from "./types";
 
 export function computeScore(input: RankingInput): LayerBreakdown {
   const pref = getPreference(input.userId);
+  const session = getSession(input.userId);
 
   const tagPreferenceBoost = input.tagNames.reduce(
     (sum, tagName) => sum + (pref.likedTags[tagName] || 0),
@@ -21,6 +23,14 @@ export function computeScore(input: RankingInput): LayerBreakdown {
     tagPreferenceBoost +
     (input.category ? (pref.likedCategories[input.category] || 0) : 0) +
     (input.designerId ? (pref.followedDesigners[input.designerId] || 0) : 0);
+
+  const sessionTagBoost =
+    input.tagNames.reduce((sum, tagName) => sum + (session.viewedTags[tagName] || 0), 0) * 0.2;
+  const sessionCategoryBoost =
+    (input.category ? (session.viewedCategories[input.category] || 0) : 0) * 0.2;
+  const sessionDesignerBoost =
+    (input.designerId ? (session.viewedDesigners[input.designerId] || 0) : 0) * 0.2;
+  const sessionBoost = sessionTagBoost + sessionCategoryBoost + sessionDesignerBoost;
 
   const personalizationLayer =
     input.tagWeight * PERSONALIZATION_WEIGHTS.tag +
@@ -51,6 +61,7 @@ export function computeScore(input: RankingInput): LayerBreakdown {
   const baseScore =
     personalizationLayer +
     preferenceBoost +
+    sessionBoost +
     engagementQualityLayer +
     freshnessLayer +
     creatorGrowthLayer +
@@ -61,6 +72,7 @@ export function computeScore(input: RankingInput): LayerBreakdown {
   return {
     personalizationLayer,
     preferenceBoost,
+    sessionBoost,
     engagementQualityLayer,
     freshnessLayer,
     creatorGrowthLayer,

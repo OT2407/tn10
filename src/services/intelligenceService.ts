@@ -4,6 +4,7 @@ import type { LayerBreakdown } from '../ranking/types';
 import { getSnapshot, setSnapshot } from '../cache/feedSnapshot';
 import { logRankingTelemetry } from '../telemetry/rankingTelemetry';
 import { DIVERSITY } from '../ranking/diversity';
+import { updateSession } from '../ranking/session';
 
 const prisma = new PrismaClient();
 
@@ -358,5 +359,23 @@ export async function getExploreItemScoreBreakdown(
   itemId: string
 ): Promise<LayerBreakdown | null> {
   const snapshot = await getOrBuildSnapshot(userId);
-  return snapshot.breakdownByItemId.get(itemId) ?? null;
+  const breakdown = snapshot.breakdownByItemId.get(itemId) ?? null;
+  if (breakdown) {
+    const item = await prisma.item.findUnique({
+      where: { id: itemId },
+      include: { tags: { include: { tag: true } } },
+    });
+    if (item) {
+      for (const relation of item.tags) {
+        updateSession(userId, 'tag', relation.tag.name);
+      }
+      if (item.category) {
+        updateSession(userId, 'category', item.category);
+      }
+      if (item.sellerId) {
+        updateSession(userId, 'designer', item.sellerId);
+      }
+    }
+  }
+  return breakdown;
 }

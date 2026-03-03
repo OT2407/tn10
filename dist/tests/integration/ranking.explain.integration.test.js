@@ -116,12 +116,14 @@ async function loginAndGetToken() {
     strict_1.default.equal(data.itemId, item.id);
     strict_1.default.ok(data.breakdown.personalizationLayer > 0);
     strict_1.default.ok(data.breakdown.preferenceBoost > 0);
+    strict_1.default.ok(data.breakdown.sessionBoost >= 0);
     strict_1.default.ok(data.breakdown.engagementQualityLayer > 0);
     strict_1.default.ok(data.breakdown.freshnessLayer > 0);
     strict_1.default.ok(data.breakdown.creatorGrowthLayer > 0);
     strict_1.default.ok(data.breakdown.explorationNoise >= 0 && data.breakdown.explorationNoise <= 0.2);
     const expectedTotal = data.breakdown.personalizationLayer +
         data.breakdown.preferenceBoost +
+        data.breakdown.sessionBoost +
         data.breakdown.engagementQualityLayer +
         data.breakdown.freshnessLayer +
         data.breakdown.creatorGrowthLayer +
