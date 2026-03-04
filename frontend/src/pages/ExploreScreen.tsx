@@ -8,6 +8,9 @@ import { sampleDesignerProfile } from '../mocks/data';
 export function ExploreScreen() {
   const [tab, setTab] = useState<'Explore' | 'Shop' | 'Collections' | 'Saved'>('Explore');
   const [openDesigner, setOpenDesigner] = useState(false);
+  const [debugRanking] = useState<boolean>(() =>
+    new URLSearchParams(window.location.search).get('debugRanking') === 'true'
+  );
 
   if (openDesigner) {
     return <DesignerProfilePage profile={sampleDesignerProfile} />;
@@ -21,6 +24,7 @@ export function ExploreScreen() {
         tags={tags}
         followingDesignerIds={['usr_nora']}
         onOpenDesigner={() => setOpenDesigner(true)}
+        debugRanking={debugRanking}
       />
     </main>
   );

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { ExploreMode, FeedItem } from '../../types/domain';
 import { TagPill } from '../common/TagPill';
 import { FeedCard } from './FeedCard';
-import { applyMode, toggleLike, toggleSave } from '../../services/exploreApi';
+import { applyMode, fetchFeed, toggleLike, toggleSave } from '../../services/exploreApi';
 
 interface FeedPageProps {
   items: FeedItem[];
@@ -10,6 +10,7 @@ interface FeedPageProps {
   authToken?: string;
   followingDesignerIds?: string[];
   onOpenDesigner?: (designerId: string) => void;
+  debugRanking?: boolean;
 }
 
 const PAGE_SIZE = 8;
@@ -20,6 +21,7 @@ export function FeedPage({
   authToken,
   followingDesignerIds = [],
   onOpenDesigner,
+  debugRanking = false,
 }: FeedPageProps) {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [mode, setMode] = useState<ExploreMode>('FOR_YOU');
@@ -27,6 +29,60 @@ export function FeedPage({
   const [likePendingIds, setLikePendingIds] = useState<Set<string>>(new Set());
   const [savePendingIds, setSavePendingIds] = useState<Set<string>>(new Set());
   const [localItems, setLocalItems] = useState<FeedItem[]>(items);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function hydrateFromFeedApi() {
+      const data = await fetchFeed(authToken, 20, debugRanking);
+      if (!data || cancelled) {
+        return;
+      }
+
+      setLocalItems((prev) => {
+        const byId = new Map(prev.map((item) => [item.id, item]));
+        return data.items.map((apiItem) => {
+          const existing = byId.get(apiItem.itemId);
+          if (!existing) {
+            return {
+              id: apiItem.itemId,
+              title: apiItem.title ?? 'Untitled',
+              coverUrl: '',
+              category: apiItem.category ?? 'uncategorized',
+              tags: [],
+              likes: 0,
+              saves: 0,
+              hasCollab: false,
+              isVerified: false,
+              price: 0,
+              currency: 'TRY',
+              seller: {
+                id: apiItem.sellerId ?? 'unknown',
+                displayName: 'Unknown',
+                handle: '@unknown',
+                verified: false,
+                avatarUrl: '',
+                followersCount: 0,
+                followingCount: 0,
+                specialties: [],
+              },
+              createdAt: apiItem.createdAt,
+              _ranking: apiItem._ranking,
+            };
+          }
+
+          return {
+            ...existing,
+            _ranking: apiItem._ranking,
+          };
+        });
+      });
+    }
+
+    void hydrateFromFeedApi();
+    return () => {
+      cancelled = true;
+    };
+  }, [authToken, debugRanking]);
 
   const baseFiltered = useMemo(
     () =>
@@ -142,6 +198,7 @@ export function FeedPage({
               onOpenDesigner={onOpenDesigner}
               likePending={likePendingIds.has(item.id)}
               savePending={savePendingIds.has(item.id)}
+              debugRanking={debugRanking}
             />
           ))}
         </div>

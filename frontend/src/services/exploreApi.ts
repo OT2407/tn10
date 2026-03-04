@@ -1,4 +1,5 @@
 import type { ExploreMode, FeedItem } from '../types/domain';
+import type { LayerBreakdown } from '../types/domain';
 
 interface ExploreResponse {
   success: boolean;
@@ -10,6 +11,7 @@ interface ExploreResponse {
       sellerId: string | null;
       score: number;
       createdAt: string;
+      _ranking?: LayerBreakdown;
     }>;
     nextCursor: string | null;
   };
@@ -38,6 +40,41 @@ export async function fetchExplore(token: string | undefined, limit: number, cur
   }
 
   const response = await fetch(`${API_BASE}/explore?${qs.toString()}`, {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = (await response.json()) as ExploreResponse;
+  if (!payload.success) {
+    return null;
+  }
+
+  return payload.data;
+}
+
+export async function fetchFeed(
+  token: string | undefined,
+  limit: number,
+  debugRanking: boolean,
+  cursor?: string
+): Promise<ExploreResponse['data'] | null> {
+  if (!token) {
+    return null;
+  }
+
+  const qs = new URLSearchParams({
+    limit: String(limit),
+    debugRanking: String(debugRanking),
+  });
+  if (cursor) {
+    qs.set('cursor', cursor);
+  }
+
+  const response = await fetch(`${API_BASE}/feed?${qs.toString()}`, {
     method: 'GET',
     headers: authHeaders(token),
   });
