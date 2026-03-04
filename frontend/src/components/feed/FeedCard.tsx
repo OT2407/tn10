@@ -3,6 +3,7 @@ import type { FeedItem } from '../../types/domain';
 import { LikeButton } from '../common/LikeButton';
 import { SaveButton } from '../common/SaveButton';
 import { TagPill } from '../common/TagPill';
+import { RankingDebugOverlay } from '../RankingDebugOverlay';
 
 interface FeedCardProps {
   item: FeedItem;
@@ -11,6 +12,7 @@ interface FeedCardProps {
   onOpenDesigner?: (designerId: string) => void;
   likePending?: boolean;
   savePending?: boolean;
+  debugRanking?: boolean;
 }
 
 export function FeedCard({
@@ -20,6 +22,7 @@ export function FeedCard({
   onOpenDesigner,
   likePending = false,
   savePending = false,
+  debugRanking = false,
 }: FeedCardProps) {
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl">
@@ -72,6 +75,20 @@ export function FeedCard({
             onClick={() => onSave?.(item.id)}
           />
         </div>
+        <RankingDebugOverlay
+          breakdown={item._ranking ?? {
+            personalizationLayer: 0,
+            engagementQualityLayer: 0,
+            freshnessLayer: 0,
+            creatorGrowthLayer: 0,
+            emergingBoost: 0,
+            explorationNoise: 0,
+            preferenceBoost: 0,
+            sessionBoost: 0,
+            totalScore: 0,
+          }}
+          visible={debugRanking && item._ranking !== undefined}
+        />
       </div>
     </article>
   );

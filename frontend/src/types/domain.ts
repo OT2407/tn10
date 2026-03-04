@@ -36,6 +36,20 @@ export interface FeedItem {
   currency: 'TRY';
   seller: Designer;
   createdAt?: string;
+  _ranking?: LayerBreakdown;
+}
+
+export interface LayerBreakdown {
+  personalizationLayer: number;
+  engagementQualityLayer: number;
+  freshnessLayer: number;
+  creatorGrowthLayer: number;
+  emergingBoost: number;
+  explorationNoise: number;
+  preferenceBoost: number;
+  sessionBoost: number;
+  diversityPenalty?: number;
+  totalScore: number;
 }
 
 export interface ItemDetail extends FeedItem {
