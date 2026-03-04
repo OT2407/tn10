@@ -19,12 +19,13 @@ function loadComputeScore() {
   } catch {
     return () => ({
       personalizationLayer: 0,
-      preferenceBoost: 0,
       engagementQualityLayer: 0,
       freshnessLayer: 0,
       creatorGrowthLayer: 0,
       emergingBoost: 0,
       explorationNoise: 0,
+      preferenceBoost: 0,
+      sessionBoost: 0,
       diversityPenalty: 0,
       totalScore: 0,
     });
@@ -76,12 +77,13 @@ async function loadItemFromDb(_itemId) {
 function emptyBreakdown() {
   return {
     personalizationLayer: 0,
-    preferenceBoost: 0,
     engagementQualityLayer: 0,
     freshnessLayer: 0,
     creatorGrowthLayer: 0,
     emergingBoost: 0,
     explorationNoise: 0,
+    preferenceBoost: 0,
+    sessionBoost: 0,
     diversityPenalty: 0,
     totalScore: 0,
   };
@@ -97,7 +99,7 @@ if (!itemId) {
 }
 
 async function main() {
-  const preference = getPreference('demo-user');
+  const preferences = getPreference('demo-user');
   const loaded = await loadItemFromDb(itemId);
 
   if (!loaded) {
@@ -107,18 +109,19 @@ async function main() {
       explanation: 'Explain response (no item data available).',
       breakdown,
       totalScore: breakdown.totalScore,
-      preferences: preference,
+      preferences,
+      note: 'All ranking signals included (diversity, preference, session, decay)',
     });
     return;
   }
 
   const item = loaded.item;
   const tagNames = item.tags.map((relation) => relation.tag.name);
-  const tagWeight = tagNames.reduce((sum, tagName) => sum + (preference.likedTags[tagName] || 0), 0);
+  const tagWeight = tagNames.reduce((sum, tagName) => sum + (preferences.likedTags[tagName] || 0), 0);
   const categoryWeight =
-    item.category === null ? 0 : preference.likedCategories[item.category] || 0;
+    item.category === null ? 0 : preferences.likedCategories[item.category] || 0;
   const designerWeight =
-    item.sellerId === null ? 0 : preference.followedDesigners[item.sellerId] || 0;
+    item.sellerId === null ? 0 : preferences.followedDesigners[item.sellerId] || 0;
   const ageInHours = Math.max(0, (Date.now() - item.createdAt.getTime()) / (1000 * 60 * 60));
   const ageInDays = ageInHours / 24;
 
@@ -142,7 +145,8 @@ async function main() {
     itemId,
     breakdown,
     totalScore: breakdown.totalScore,
-    preferences: preference,
+    preferences,
+    note: 'All ranking signals included (diversity, preference, session, decay)',
   });
 }
 

@@ -16,13 +16,13 @@ export interface RankingInput {
 
 export interface LayerBreakdown {
   personalizationLayer: number;
-  preferenceBoost: number;
-  sessionBoost: number;
   engagementQualityLayer: number;
   freshnessLayer: number;
   creatorGrowthLayer: number;
   emergingBoost: number;
   explorationNoise: number;
+  preferenceBoost: number;
+  sessionBoost: number;
   diversityPenalty?: number;
   totalScore: number;
 }
