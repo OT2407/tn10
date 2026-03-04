@@ -3,6 +3,7 @@ export interface ExplorePageInput {
     userId: string;
     limit: number;
     cursor?: string;
+    debugRanking?: boolean;
 }
 export interface ExploreScoredItem {
     itemId: string;
@@ -11,6 +12,7 @@ export interface ExploreScoredItem {
     category: string | null;
     sellerId: string | null;
     createdAt: Date;
+    _ranking?: LayerBreakdown;
 }
 export interface ExplorePage {
     items: ExploreScoredItem[];

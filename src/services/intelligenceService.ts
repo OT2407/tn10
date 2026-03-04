@@ -17,6 +17,7 @@ export interface ExplorePageInput {
   userId: string;
   limit: number;
   cursor?: string;
+  debugRanking?: boolean;
 }
 
 export interface ExploreScoredItem {
@@ -26,6 +27,7 @@ export interface ExploreScoredItem {
   category: string | null;
   sellerId: string | null;
   createdAt: Date;
+  _ranking?: LayerBreakdown;
 }
 
 export interface ExplorePage {
@@ -335,6 +337,8 @@ async function getOrBuildSnapshot(userId: string): Promise<RankedSnapshot> {
 
 export async function getRankedExplorePage(input: ExplorePageInput): Promise<ExplorePage> {
   const snapshot = await getOrBuildSnapshot(input.userId);
+  const shouldIncludeRanking =
+    process.env.NODE_ENV !== 'production' || input.debugRanking === true;
 
   let startIndex = 0;
   if (input.cursor !== undefined) {
@@ -343,13 +347,24 @@ export async function getRankedExplorePage(input: ExplorePageInput): Promise<Exp
   }
 
   const pageItems = snapshot.rankedItems.slice(startIndex, startIndex + input.limit);
+  const responseItems = shouldIncludeRanking
+    ? pageItems.map((item) => ({
+        ...(snapshot.breakdownByItemId.has(item.itemId)
+          ? {
+              ...item,
+              _ranking: snapshot.breakdownByItemId.get(item.itemId) as LayerBreakdown,
+            }
+          : item),
+      }))
+    : pageItems;
+
   const nextCursor =
     startIndex + input.limit < snapshot.rankedItems.length
-      ? pageItems[pageItems.length - 1]?.itemId ?? null
+      ? responseItems[responseItems.length - 1]?.itemId ?? null
       : null;
 
   return {
-    items: pageItems,
+    items: responseItems,
     nextCursor,
   };
 }

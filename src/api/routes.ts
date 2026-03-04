@@ -154,6 +154,26 @@ router.get('/explore', authMiddleware, validate({ query: ExploreQuerySchema }), 
     const page = await getRankedExplorePage({
       userId,
       limit: query.limit,
+      ...(query.debugRanking === undefined ? {} : { debugRanking: query.debugRanking }),
+      ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+    });
+    res.status(200).json({ success: true, data: page });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/feed', authMiddleware, validate({ query: ExploreQuerySchema }), async (req, res, next) => {
+  try {
+    const userId = res.locals.userId as string | undefined;
+    if (!userId) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing user context');
+    }
+    const query = ExploreQuerySchema.parse(req.query);
+    const page = await getRankedExplorePage({
+      userId,
+      limit: query.limit,
+      ...(query.debugRanking === undefined ? {} : { debugRanking: query.debugRanking }),
       ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
     });
     res.status(200).json({ success: true, data: page });

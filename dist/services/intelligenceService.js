@@ -253,17 +253,28 @@ async function getOrBuildSnapshot(userId) {
 }
 async function getRankedExplorePage(input) {
     const snapshot = await getOrBuildSnapshot(input.userId);
+    const shouldIncludeRanking = process.env.NODE_ENV !== 'production' || input.debugRanking === true;
     let startIndex = 0;
     if (input.cursor !== undefined) {
         const cursorIndex = snapshot.rankedItems.findIndex((item) => item.itemId === input.cursor);
         startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
     }
     const pageItems = snapshot.rankedItems.slice(startIndex, startIndex + input.limit);
+    const responseItems = shouldIncludeRanking
+        ? pageItems.map((item) => ({
+            ...(snapshot.breakdownByItemId.has(item.itemId)
+                ? {
+                    ...item,
+                    _ranking: snapshot.breakdownByItemId.get(item.itemId),
+                }
+                : item),
+        }))
+        : pageItems;
     const nextCursor = startIndex + input.limit < snapshot.rankedItems.length
-        ? pageItems[pageItems.length - 1]?.itemId ?? null
+        ? responseItems[responseItems.length - 1]?.itemId ?? null
         : null;
     return {
-        items: pageItems,
+        items: responseItems,
         nextCursor,
     };
 }
